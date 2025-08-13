@@ -1,0 +1,264 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.boot.transaction.model.TransactionMapper">
+
+	<select id="product_list" parameterType="Page" resultType="Product">
+        <![CDATA[
+  			select * from
+				(select row_number()
+					over(order by product_date desc) rnum, a.* from transaction_product a)
+						where rnum >= #{startNo} and rnum <= #{endNo}
+  		]]>
+	</select>
+	
+	<select id="products_count" resultType="int">
+		select count(*) from transaction_product
+	</select>
+
+	<select id="products_search_count" parameterType="map" resultType="int">
+	    select count(*) from transaction_product
+	    where 1=1
+	    <if test="area != null and area != ''">
+            AND sales_area LIKE '%' || #{area} || '%'
+        </if>
+        <if test="category != null and category != ''">
+            AND category_code = #{category}
+        </if>
+        <if test="keyword != null and keyword != ''">
+		  AND REPLACE(product_title, ' ', '') LIKE '%' || REPLACE(#{keyword}, ' ', '') || '%'
+		</if>
+		<if test="minPrice != null">
+		    AND sales_price &gt;= #{minPrice}
+		</if>
+		<if test="maxPrice != null">
+		    AND sales_price &lt;= #{maxPrice}
+		</if>
+	</select>
+	
+	
+	<!-- 글 조회 기능 -->
+	<select id="selectProduct" parameterType="int" resultType="Product">
+	    select * from transaction_product where product_num = #{product_num}
+	</select>
+	
+	<update id="update_product_hits" parameterType="int">
+		update transaction_product set product_hits = product_hits + 1
+			where product_num = #{product_num}
+	</update>
+	
+	
+	<!-- 검색 기능 -->
+	<select id="products_search_list" parameterType="Page" resultType="Product">
+	    SELECT * FROM (
+	        SELECT b.*, rownum AS rn FROM (
+	            SELECT * FROM transaction_product
+	            WHERE 1=1
+	            <if test="area != null and area != ''">
+	                AND sales_area LIKE '%' || #{area} || '%'
+	            </if>
+	            <if test="category != null and category != ''">
+	                AND category_code = #{category}
+	            </if>
+	            <if test="keyword != null and keyword != ''">
+				  AND REPLACE(product_title, ' ', '') LIKE '%' || REPLACE(#{keyword}, ' ', '') || '%'
+				</if>
+				<if test="minPrice != null">
+				    AND sales_price &gt;= #{minPrice}
+				</if>
+				<if test="maxPrice != null">
+				    AND sales_price &lt;= #{maxPrice}
+				</if>
+	            ORDER BY product_date DESC
+	        ) b
+	        WHERE rownum &lt;= #{endNo}
+	    )
+	    WHERE rn &gt;= #{startNo}
+	</select>
+
+	<select id="category_list" resultType="Category">
+		select * from transaction_category order by category_num
+	</select>
+	
+	<select id="product_list_by_category" parameterType="string" resultType="Product">
+	    SELECT * FROM transaction_product WHERE category_code = #{categoryCode}
+	    	ORDER BY product_date DESC
+	</select>
+
+
+	<!-- 판매글 제어 기능 -->
+	<insert id="product_insert" parameterType="Product">
+		<selectKey keyProperty="product_num" resultType="int" order="BEFORE">
+			select nvl(max(product_num), 0) + 1 from transaction_product
+		</selectKey>
+		
+		insert into transaction_product values(#{product_num}, #{category_code}, #{product_name},
+			sysdate, #{product_img}, #{product_des}, #{user_id}, #{sales_price}, #{sales_area}, 
+			#{product_title}, default, default)
+	</insert>
+	
+	<select id="user_product_list" resultType="Product" parameterType="Page">
+	
+		<![CDATA[
+  			select * from
+				(select row_number()
+					over(order by product_date desc) rnum, a.* from transaction_product a
+						where user_id = #{user_id})
+						where rnum >= #{startNo} and rnum <= #{endNo}
+  		]]>
+	
+	</select>
+	
+	<select id="user_product_list_count" resultType="int">
+		select count(*) from transaction_product where user_id = #{user_id}
+	</select>
+	
+	<update id="user_product_modify" parameterType="Product">
+		update transaction_product set product_title = #{product_title}, product_name = #{product_name},
+			product_des = #{product_des}, sales_price = #{sales_price} where product_num = #{product_num}
+	</update>
+	
+	<delete id="user_product_delete" parameterType="int">
+		delete from transaction_product where product_num = #{product_num}
+	</delete>
+	
+	<!-- 회원가입 기능 -->
+	<insert id="insertUser" parameterType="User">
+	    insert into transaction_user values (
+	        #{user_id}, #{user_pwd}, #{user_name}, #{user_nickname}, 
+	        #{user_age}, #{user_email}, #{user_phone}, #{user_zipcode},
+	        #{user_addr}, #{user_addr_detail}, sysdate
+	    )
+	</insert>
+	
+	<select id="findId" resultType="User">
+	    select * from transaction_user where user_id = #{user_id}
+	</select>
+	
+	<select id="findNickname" parameterType="String" resultType="User">
+	    select *
+	    from transaction_user
+	    where user_nickname = #{user_nickname}
+	</select>
+	
+	<update id="updateUser" parameterType="User">
+	    update transaction_user
+	    set 
+	        user_pwd = #{user_pwd}, 
+	        user_name = #{user_name}, 
+	        user_nickname = #{user_nickname},
+	        user_age = #{user_age}, 
+	        user_email = #{user_email}, 
+	        user_phone = #{user_phone},
+	        user_zipcode = #{user_zipcode}, 
+	        user_addr = #{user_addr}, 
+	        user_addr_detail = #{user_addr_detail}
+	    where user_id = #{user_id}
+	</update>
+	
+	<select id="getPassword" resultType="String"> <!-- 회원정보 수정 시 비밀번호는 바꾸지 않는 경우를 처리하기 위해 만든 쿼리(user 테이블 pwd 속성은 not null로 되어있어서 없으면 오류남.) -->
+	    select user_pwd
+	    from transaction_user
+	    where user_id = #{userId}
+	</select>
+	
+
+	<!-- 채팅 기능 -->
+	<insert id="sendMessage" parameterType="ChatMessageDTO">
+	    <selectKey keyProperty="chat_room_num" resultType="java.lang.Integer" order="BEFORE">
+	        select nvl(
+	            (select chat_room_num from (
+	                select chat_room_num from transaction_chat_messages
+	                where ((from_user = #{from_user} and to_user = #{to_user})
+	                    or (from_user = #{to_user} and to_user = #{from_user}))
+	                  and product_num = #{product_num}
+	                order by message_id desc
+	            ) where rownum = 1),
+	            (select nvl(max(chat_room_num), 0) + 1 from transaction_chat_messages)
+	        ) as chat_room_num from dual
+	    </selectKey>
+	    insert into transaction_chat_messages (from_user, to_user, product_num, message, chat_room_num, is_leave)
+	        values(#{from_user}, #{to_user}, #{product_num}, #{message}, #{chat_room_num}, #{is_leave})
+	</insert>
+	
+	<select id="getChatMessages" resultType="ChatMessageDTO">
+	    select * from transaction_chat_messages where
+	        ((from_user = #{buyer_id} and to_user = #{seller_id})
+	        or (from_user = #{seller_id} and to_user = #{buyer_id})) and product_num = #{product_num}
+	        order by sent_time asc
+	</select>
+	
+	<select id="myMessage" resultType="ChatMessageDTO" parameterType="String">
+	    select * from transaction_chat_messages where (to_user = #{user_id}) or (from_user = #{user_id})
+	        order by sent_time asc
+	</select>
+	
+	<select id="product_list_on_chat" resultType="Product">
+		select * from transaction_product
+	</select>
+	
+	<delete id="deactivation_chat_room" parameterType="int">
+		delete from transaction_chat_messages where product_num = #{product_num}
+	</delete>
+	
+	<update id="markMessagesAsRead" parameterType="map">
+	    update transaction_chat_messages set is_read = 1 where to_user = #{userId}
+	    	and from_user = #{opponentId} and product_num = #{productNum} and is_read = 0
+	</update>
+
+	<!-- 댓글 기능 -->
+	<select id="getCommentsByProduct" parameterType="int" resultType="Comment">
+        SELECT * FROM product_comment WHERE product_num = #{product_num} ORDER BY comment_date DESC
+    </select>
+
+    <insert id="insertProductComment" parameterType="Comment">
+        INSERT INTO product_comment (comment_id, product_num, user_id, comment_content)
+        VALUES (product_comment_seq.NEXTVAL, #{product_num}, #{user_id}, #{comment_content})
+    </insert>
+    
+    <delete id="deleteProductComment" parameterType="int">
+        DELETE FROM product_comment WHERE comment_id = #{comment_id}
+    </delete>
+    
+    <update id="updateProductComment" parameterType="map">
+        UPDATE product_comment
+        SET comment_content = #{comment_content}
+        WHERE comment_id = #{comment_id}
+    </update>
+    
+    <!-- 판매글 신고기능 -->
+    <insert id="report" parameterType="Report">
+    	insert into transaction_report (product_num, reporter_id, reported_user_id, reported_at,
+    	report_reason) values (#{product_num}, #{reporter_id}, #{reported_user_id}, sysdate,
+    	#{report_reason})
+    </insert>
+
+	<select id="reported_check" parameterType="Report" resultType="int">
+		select count(*) from transaction_report where product_num = #{product_num} and 
+		reporter_id = #{reporter_id} and reported_user_id = #{reported_user_id}
+	</select>
+	
+	<!-- 삭제 추가 -->
+	
+	<update id="leaveChatRoomForUser">
+	    UPDATE transaction_chat_messages
+	    SET is_leave = 1
+	    WHERE chat_room_num = #{chat_room_num} AND from_user = #{user_id}
+	</update>
+	
+	<select id="checkIfOpponentLeft" resultType="int">
+	    SELECT CASE WHEN COUNT(*) = 0 THEN 1 ELSE 0 END
+	    FROM transaction_chat_messages
+	    WHERE chat_room_num = #{chat_room_num}
+	      AND from_user = #{opponent_id}
+	      AND is_leave = 0
+	</select>
+	
+	<delete id="deleteChatRoomHistory">
+	    DELETE FROM transaction_chat_messages WHERE chat_room_num = #{chat_room_num}
+	</delete>
+
+</mapper>

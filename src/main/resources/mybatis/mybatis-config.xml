@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE configuration
+  PUBLIC "-//mybatis.org//DTD Config 3.0//EN"
+  "https://mybatis.org/dtd/mybatis-3-config.dtd">
+
+<configuration>
+	
+	<typeAliases>
+		<typeAlias type="com.boot.transaction.model.CategoryDTO" alias="Category"/>
+		<typeAlias type="com.boot.transaction.model.ProductDTO" alias="Product"/>
+		<typeAlias type="com.boot.transaction.model.UserDTO" alias="User"/>
+		<typeAlias type="com.boot.transaction.model.ManagerDTO" alias="Manager"/>
+		<typeAlias type="com.boot.transaction.model.PageDTO" alias="Page"/>
+		<typeAlias type="com.boot.transaction.model.ChatMessageDTO" alias="Chat"/>
+		<typeAlias type="com.boot.transaction.model.ProductCommentDTO" alias="Comment"/>
+		<typeAlias type="com.boot.transaction.model.ReportDTO" alias="Report"/>
+	</typeAliases>
+	
+</configuration>
