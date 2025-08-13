@@ -57,20 +57,31 @@ public class ChatServer {
 
                 System.out.println("Message from " + from + " to " + to + ": " + msg);
 
-                // 메시지 DB 저장
+                TransactionMapper mapper = getMapper();
+                Integer chatRoomNum = mapper.findLastChatRoomNum(from, to, productNum);
+
+                // 내가 나갔거나 상대방이 나간 경우 모두 새 방 생성
+                if (chatRoomNum != null) {
+                    boolean iLeft = mapper.didUserLeave(chatRoomNum, from) > 0;
+                    boolean opponentLeft = mapper.didUserLeave(chatRoomNum, to) > 0;
+                    if (iLeft || opponentLeft) {
+                        chatRoomNum = null;
+                    }
+                }
+
+                if (chatRoomNum == null) {
+                    chatRoomNum = mapper.createNewRoomNum();
+                }
+
                 ChatMessageDTO cdto = new ChatMessageDTO();
                 cdto.setFrom_user(from);
                 cdto.setTo_user(to);
                 cdto.setMessage(msg);
                 cdto.setProduct_num(productNum);
+                cdto.setChat_room_num(chatRoomNum);
+                cdto.setIs_leave(0);
 
-                TransactionMapper mapper = getMapper();
-                if (mapper != null) {
-                    mapper.sendMessage(cdto);
-                } else {
-                    System.err.println("TransactionMapper bean을 가져올 수 없습니다.");
-                }
-
+                mapper.sendMessage(cdto);
                 
                 Session toSession = clients.get(to);
                 if (toSession != null && toSession.isOpen()) {
@@ -78,7 +89,7 @@ public class ChatServer {
                     response.put("from", from);
                     response.put("message", msg);
                     response.put("product_num", productNum);
-
+                    response.put("chat_room_num", chatRoomNum);
                     toSession.getBasicRemote().sendText(response.toString());
                 }
 

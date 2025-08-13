@@ -168,18 +168,6 @@
 
 	<!-- 채팅 기능 -->
 	<insert id="sendMessage" parameterType="ChatMessageDTO">
-	    <selectKey keyProperty="chat_room_num" resultType="java.lang.Integer" order="BEFORE">
-	        select nvl(
-	            (select chat_room_num from (
-	                select chat_room_num from transaction_chat_messages
-	                where ((from_user = #{from_user} and to_user = #{to_user})
-	                    or (from_user = #{to_user} and to_user = #{from_user}))
-	                  and product_num = #{product_num}
-	                order by message_id desc
-	            ) where rownum = 1),
-	            (select nvl(max(chat_room_num), 0) + 1 from transaction_chat_messages)
-	        ) as chat_room_num from dual
-	    </selectKey>
 	    insert into transaction_chat_messages (from_user, to_user, product_num, message, chat_room_num, is_leave)
 	        values(#{from_user}, #{to_user}, #{product_num}, #{message}, #{chat_room_num}, #{is_leave})
 	</insert>
@@ -209,7 +197,31 @@
 	    	and from_user = #{opponentId} and product_num = #{productNum} and is_read = 0
 	</update>
 
-	<!-- 댓글 기능 -->
+    <select id="findLastChatRoomNum" resultType="int">
+        SELECT chat_room_num
+        FROM transaction_chat_messages
+        WHERE product_num = #{product_num}
+        AND ((from_user = #{user1} AND to_user = #{user2})
+        OR (from_user = #{user2} AND to_user = #{user1}))
+        ORDER BY message_id DESC
+        FETCH FIRST 1 ROWS ONLY
+    </select>
+
+    <select id="didUserLeave" resultType="int">
+        SELECT COUNT(*)
+        FROM transaction_chat_messages
+        WHERE chat_room_num = #{chat_room_num}
+        AND from_user = #{user_id}
+        AND is_leave = 1
+    </select>
+
+    <select id="createNewRoomNum" resultType="int">
+        SELECT NVL(MAX(chat_room_num), 0) + 1
+        FROM transaction_chat_messages
+    </select>
+
+
+    <!-- 댓글 기능 -->
 	<select id="getCommentsByProduct" parameterType="int" resultType="Comment">
         SELECT * FROM product_comment WHERE product_num = #{product_num} ORDER BY comment_date DESC
     </select>
@@ -228,7 +240,7 @@
         SET comment_content = #{comment_content}
         WHERE comment_id = #{comment_id}
     </update>
-    
+
     <!-- 판매글 신고기능 -->
     <insert id="report" parameterType="Report">
     	insert into transaction_report (product_num, reporter_id, reported_user_id, reported_at,

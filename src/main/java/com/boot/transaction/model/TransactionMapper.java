@@ -96,4 +96,12 @@ public interface TransactionMapper {
 		 */
 		void deleteChatRoomHistory(@Param("chat_room_num") int chatRoomNum);
 
+    Integer findLastChatRoomNum(@Param("user1") String user1,
+                                @Param("user2") String user2,
+                                @Param("product_num") int productNum);
+
+    int didUserLeave(@Param("chat_room_num") int chatRoomNum,
+                     @Param("user_id") String userId);
+
+    int createNewRoomNum();
 }
