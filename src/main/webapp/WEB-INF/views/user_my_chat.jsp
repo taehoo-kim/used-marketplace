@@ -94,7 +94,7 @@
         // 과거 채팅 내역 불러오기
         $.ajax({
             url: "/chat/history", method: "GET",
-            data: { buyer_id: currentOpponentId, seller_id: loggedInUserId, product_num: currentProductNum },
+            data: { chat_room_num: currentChatRoomNum },
             success: function(messages) {
                 const chatWindow = document.getElementById("chat_window");
                 chatWindow.innerHTML = "";

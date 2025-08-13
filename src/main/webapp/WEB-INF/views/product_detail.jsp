@@ -138,12 +138,13 @@
 			let seller_id = $(this).data("sellerId");
 			let buyer_id = $(this).data("buyerId");
 			let product_num = $(this).data("productNum");
+            let chat_room_num = $(this).data("chat-room-num")
 			
 			if(buyer_id == "") {
 				alert("로그인이 필요한 서비스입니다.");
 				return;
 			}else {
-				openChatModal(seller_id, buyer_id, product_num);	
+				openChatModal(seller_id, buyer_id, product_num, chat_room_num);
 			}
 		});
 		
@@ -260,7 +261,7 @@
 	
 	let socket;
 	
-	function openChatModal(seller_id, buyer_id, product_num) {
+	function openChatModal(seller_id, buyer_id, product_num, chat_room_num) {
 	    
 	    document.getElementById("chat_seller_id").innerText = seller_id;
 	    document.getElementById("chat_modal").style.display = "block";
@@ -279,9 +280,7 @@
 	        url: "/chat/history",
 	        method: "GET",
 	        data: {
-	            buyer_id: buyer_id,
-	            seller_id: seller_id,
-	            product_num: product_num
+	            chat_room_num: chat_room_num
 	        },
 	        success: function(messages) {
 	            const chatWindow = document.getElementById("chat_window");

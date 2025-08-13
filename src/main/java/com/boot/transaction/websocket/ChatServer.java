@@ -58,29 +58,25 @@ public class ChatServer {
                 System.out.println("Message from " + from + " to " + to + ": " + msg);
 
                 TransactionMapper mapper = getMapper();
+
                 Integer chatRoomNum = mapper.findLastChatRoomNum(from, to, productNum);
-
-                // 내가 나갔거나 상대방이 나간 경우 모두 새 방 생성
-                if (chatRoomNum != null) {
-                    boolean iLeft = mapper.didUserLeave(chatRoomNum, from) > 0;
-                    boolean opponentLeft = mapper.didUserLeave(chatRoomNum, to) > 0;
-                    if (iLeft || opponentLeft) {
-                        chatRoomNum = null;
-                    }
-                }
-
                 if (chatRoomNum == null) {
                     chatRoomNum = mapper.createNewRoomNum();
+                    mapper.upsertChatParticipant(chatRoomNum, from);
+                    mapper.upsertChatParticipant(chatRoomNum, to);
+                } else {
+                    if (mapper.isParticipantActive(chatRoomNum, to) == 0) {
+                        mapper.upsertChatParticipant(chatRoomNum, to);
+                    }
                 }
 
                 ChatMessageDTO cdto = new ChatMessageDTO();
                 cdto.setFrom_user(from);
                 cdto.setTo_user(to);
-                cdto.setMessage(msg);
                 cdto.setProduct_num(productNum);
+                cdto.setMessage(msg);
                 cdto.setChat_room_num(chatRoomNum);
                 cdto.setIs_leave(0);
-
                 mapper.sendMessage(cdto);
                 
                 Session toSession = clients.get(to);

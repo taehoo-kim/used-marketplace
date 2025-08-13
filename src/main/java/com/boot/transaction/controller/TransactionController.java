@@ -156,22 +156,16 @@ public class TransactionController {
 	
 	 		Map<Integer, List<ChatMessageDTO>> chatsByRoom = allMessages.stream()
 	 			.collect(Collectors.groupingBy(ChatMessageDTO::getChat_room_num));
-	
+
 	 		List<List<ChatMessageDTO>> activeChatRooms = new ArrayList<>();
-	
-	 		for (List<ChatMessageDTO> messagesInRoom : chatsByRoom.values()) {
-	 			List<ChatMessageDTO> myMessagesInRoom = messagesInRoom.stream()
-	 				.filter(msg -> msg.getFrom_user().equals(userId))
-	 				.collect(Collectors.toList());
+            List<Integer> activeRoomNums = mapper.getActiveChatRooms(userId);
 
-	 			boolean iHaveSentMessages = !myMessagesInRoom.isEmpty();
-	 			boolean allMyMessagesAreLeft = iHaveSentMessages && myMessagesInRoom.stream().allMatch(msg -> msg.getIs_leave() == 1);
-
-	 			// 내가 메시지를 보낸적이 없거나, 보낸 메시지 중 is_leave=0인 것이 하나라도 있으면 채팅방을 보여줌
-	 			if (!iHaveSentMessages || !allMyMessagesAreLeft) {
-	 				activeChatRooms.add(messagesInRoom);
-	 			}
-	 		}
+            for (Integer roomNum : activeRoomNums) {
+                List<ChatMessageDTO> roomMessages = mapper.getMessagesByRoom(roomNum);
+                if (!roomMessages.isEmpty()) {
+                    activeChatRooms.add(roomMessages);
+                }
+            }
 	 		
 	 		Map<Integer, Map<Integer, List<ChatMessageDTO>>> groupedChats = activeChatRooms.stream()
 	 			.flatMap(List::stream)
@@ -734,12 +728,12 @@ public class TransactionController {
     //채팅
     @GetMapping("/chat/history")
     @ResponseBody
-    public List<ChatMessageDTO> getChatHistory(
-            @RequestParam("buyer_id") String buyer_id,
-            @RequestParam("seller_id") String seller_id,
-            @RequestParam("product_num") int product_num) {
+    public List<ChatMessageDTO> getChatHistory(@RequestParam("chat_room_num") int chatRoomNum,
+                                               HttpSession session) {
+        UserDTO user = (UserDTO) session.getAttribute("user");
+        if (user == null) return List.of();
 
-        return this.mapper.getChatMessages(buyer_id, seller_id, product_num);
+        return mapper.getChatMessagesForUser(chatRoomNum, user.getUser_id());
     }
     
     @GetMapping("delete_chat_room.go")
@@ -803,17 +797,15 @@ public class TransactionController {
         UserDTO user = (UserDTO) session.getAttribute("user");
         if (user == null) return "fail_auth";
 
-		// 내가 보낸 모든 메시지의 is_leave를 1로 변경
         mapper.leaveChatRoomForUser(chatRoomNum, user.getUser_id());
+        mapper.clearChatParticipant(chatRoomNum, user.getUser_id());
 
-        // 상대방도 이미 나갔는지 확인
         int opponentLeft = mapper.checkIfOpponentLeft(chatRoomNum, opponentId);
-        
-        // 상대방도 나갔다면 (opponentLeft == 1), 채팅방의 모든 기록 삭제
+
         if (opponentLeft == 1) {
             mapper.deleteChatRoomHistory(chatRoomNum);
         }
-        
+
         return "success";
     }
 }

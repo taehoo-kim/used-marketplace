@@ -173,10 +173,10 @@
 	</insert>
 	
 	<select id="getChatMessages" resultType="ChatMessageDTO">
-	    select * from transaction_chat_messages where
-	        ((from_user = #{buyer_id} and to_user = #{seller_id})
-	        or (from_user = #{seller_id} and to_user = #{buyer_id})) and product_num = #{product_num}
-	        order by sent_time asc
+        SELECT *
+        FROM transaction_chat_messages
+        WHERE chat_room_num = #{chat_room_num}
+        ORDER BY sent_time ASC
 	</select>
 	
 	<select id="myMessage" resultType="ChatMessageDTO" parameterType="String">
@@ -207,19 +207,65 @@
         FETCH FIRST 1 ROWS ONLY
     </select>
 
-    <select id="didUserLeave" resultType="int">
-        SELECT COUNT(*)
-        FROM transaction_chat_messages
-        WHERE chat_room_num = #{chat_room_num}
-        AND from_user = #{user_id}
-        AND is_leave = 1
-    </select>
-
     <select id="createNewRoomNum" resultType="int">
         SELECT NVL(MAX(chat_room_num), 0) + 1
         FROM transaction_chat_messages
     </select>
 
+    <!-- 참여자 재참여/처음 입장 -->
+    <update id="upsertChatParticipant" parameterType="map">
+        MERGE INTO transaction_chat_participants p
+        USING (SELECT #{chat_room_num} AS chat_room_num, #{user_id} AS user_id FROM dual) src
+        ON (p.chat_room_num = src.chat_room_num AND p.user_id = src.user_id)
+        WHEN MATCHED THEN
+            UPDATE SET join_time = CURRENT_TIMESTAMP
+        WHEN NOT MATCHED THEN
+            INSERT (chat_room_num, user_id, join_time)
+            VALUES (#{chat_room_num}, #{user_id}, CURRENT_TIMESTAMP)
+    </update>
+
+
+    <!-- 참여자 나가기 -->
+    <update id="clearChatParticipant">
+        UPDATE transaction_chat_participants
+        SET join_time = NULL
+        WHERE chat_room_num = #{chat_room_num} AND user_id = #{user_id}
+    </update>
+
+    <!-- 특정 유저의 join_time 이후 메시지만 -->
+    <select id="getChatMessagesForUser" resultType="ChatMessageDTO">
+        SELECT m.*
+        FROM transaction_chat_messages m
+        JOIN transaction_chat_participants p
+            ON p.chat_room_num = m.chat_room_num
+        WHERE p.user_id = #{user_id}
+            AND m.chat_room_num = #{chat_room_num}
+            AND p.join_time IS NOT NULL
+            AND m.sent_time >= p.join_time
+        ORDER BY m.sent_time ASC
+    </select>
+
+    <select id="isParticipantActive" resultType="int">
+        SELECT COUNT(*)
+        FROM transaction_chat_participants
+        WHERE chat_room_num = #{chat_room_num}
+        AND user_id = #{user_id}
+        AND join_time IS NOT NULL
+    </select>
+
+    <select id="getActiveChatRooms" resultType="int">
+        SELECT chat_room_num
+        FROM transaction_chat_participants
+        WHERE user_id = #{user_id}
+        AND join_time IS NOT NULL
+    </select>
+
+    <select id="getMessagesByRoom" resultType="ChatMessageDTO">
+        SELECT *
+        FROM transaction_chat_messages
+        WHERE chat_room_num = #{chat_room_num}
+        ORDER BY sent_time DESC
+    </select>
 
     <!-- 댓글 기능 -->
 	<select id="getCommentsByProduct" parameterType="int" resultType="Comment">
@@ -258,7 +304,8 @@
 	<update id="leaveChatRoomForUser">
 	    UPDATE transaction_chat_messages
 	    SET is_leave = 1
-	    WHERE chat_room_num = #{chat_room_num} AND from_user = #{user_id}
+	    WHERE chat_room_num = #{chat_room_num}
+        AND from_user = #{user_id}
 	</update>
 	
 	<select id="checkIfOpponentLeft" resultType="int">

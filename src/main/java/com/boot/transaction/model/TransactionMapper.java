@@ -76,10 +76,9 @@ public interface TransactionMapper {
 	
 	// ================== [수정] 채팅 관련 메서드 ==================
 
-		void sendMessage(ChatMessageDTO cdto);
-		List<ChatMessageDTO> getChatMessages(@Param("buyer_id") String buyer_id, 
-				@Param("seller_id") String seller_id, @Param("product_num") int product_num);
-		List<ChatMessageDTO> myMessage(String user_id);
+    void sendMessage(ChatMessageDTO cdto);
+    List<ChatMessageDTO> getChatMessages(@Param("chat_room_num") int chatRoomNum);
+    List<ChatMessageDTO> myMessage(String user_id);
 		
 		/**
 		 * 나가기: 특정 유저가 보낸 모든 메시지의 is_leave 상태를 1로 변경합니다.
@@ -100,8 +99,21 @@ public interface TransactionMapper {
                                 @Param("user2") String user2,
                                 @Param("product_num") int productNum);
 
-    int didUserLeave(@Param("chat_room_num") int chatRoomNum,
-                     @Param("user_id") String userId);
-
     int createNewRoomNum();
+    // 채팅 참여자 정보
+    void upsertChatParticipant(@Param("chat_room_num") int chatRoomNum,
+                               @Param("user_id") String userId);
+
+    void clearChatParticipant(@Param("chat_room_num") int chatRoomNum,
+                              @Param("user_id") String userId);
+
+    List<ChatMessageDTO> getChatMessagesForUser(@Param("chat_room_num") int chatRoomNum,
+                                                @Param("user_id") String userId);
+
+    int isParticipantActive(@Param("chat_room_num") int chatRoomNum,
+                            @Param("user_id") String userId);
+
+    List<Integer> getActiveChatRooms(@Param("user_id") String userId);
+
+    List<ChatMessageDTO> getMessagesByRoom(@Param("chat_room_num") int chatRoomNum);
 }
